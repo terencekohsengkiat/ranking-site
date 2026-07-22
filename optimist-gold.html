@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Singapore Sailing Federation - Optimist Gold Fleet National Ranking</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --singapore-red: #9D0A0E;
+            --table-header-bg: #9D0A0E;
+            --table-header-hover: #7D080B;
+            /* Base font size for scaling */
+            --base-font-size: 1rem; /* You can adjust this */
+        }
+        body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0; /* Adjusted for better embedding */
+            padding: 10px; /* Added padding for some space */
+            background-color: #f5f5f5;
+            color: #333;
+            font-size: clamp(10px, 2.5vw, 16px); /* Responsive font size for body */
+        }
+        .container {
+            max-width: 100%; /* Allow container to use full available width */
+            margin: 0 auto;
+            background-color: white;
+            padding: 15px; /* Adjusted padding */
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            border-radius: 5px;
+        }
+        .logo-container { text-align: center; margin-bottom: 15px; }
+        .logo { max-width: 250px; height: auto; }
+        h1 {
+            font-family: 'Roboto', 'Arial Black', sans-serif;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: var(--singapore-red);
+            text-align: center;
+            margin-top: 0; /* Adjusted margin */
+            margin-bottom: 15px;
+            letter-spacing: 1px;
+            font-size: clamp(1.2rem, 4vw, 1.8rem); /* Responsive H1 */
+        }
+        .ranking-table {
+            width: 100%; /* Make table responsive */
+            border-collapse: collapse;
+            margin-top: 15px;
+            color: #333;
+            /* table-layout: fixed; Removed for better auto-sizing of columns */
+        }
+        .ranking-table th, .ranking-table td {
+            border: 1px solid #ddd;
+            padding: clamp(4px, 1vw, 8px); /* Responsive padding */
+            text-align: center;
+            white-space: normal; /* Allow text wrapping */
+            word-wrap: break-word;
+            /* min-width: auto; /* Allow columns to shrink more */
+            font-size: clamp(9px, 2vw, 14px); /* Responsive font for table cells */
+        }
+        .ranking-table th {
+            background-color: var(--table-header-bg);
+            color: white !important;
+            cursor: pointer;
+            position: sticky;
+            top: 0;
+            text-transform: uppercase;
+            font-family: 'Roboto', 'Arial Black', sans-serif;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            z-index: 10;
+            vertical-align: middle;
+            box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.4);
+            font-size: clamp(10px, 2.2vw, 15px); /* Responsive font for table headers */
+        }
+        .ranking-table th:hover { background-color: var(--table-header-hover); }
+        .ranking-table tr:nth-child(even) { background-color: #f2f2f2; }
+        .ranking-table tr:hover { background-color: #ddd; }
+        .sorted-asc::after { content: " ▲"; }
+        .sorted-desc::after { content: " ▼"; }
+
+        #toggle-controls-btn {
+            display: block;
+            width: auto; margin: 10px auto 15px auto; padding: 8px 15px; /* Adjusted padding */
+            background-color: var(--singapore-red); color: white; border: none;
+            border-radius: 5px; cursor: pointer; font-family: 'Roboto', 'Arial Black', sans-serif;
+            text-transform: uppercase; font-weight: 500; letter-spacing: 0.5px;
+            font-size: clamp(0.8rem, 2.5vw, 1rem); /* Responsive font for button */
+            z-index: 100;
+        }
+        #toggle-controls-btn:hover { background-color: var(--table-header-hover); }
+
+        #controls-area {
+            display: none;
+            margin-bottom: 15px; padding: 10px; background-color: #f8f8f8;
+            border-radius: 5px; border: 1px solid #ddd;
+        }
+        #controls-area.visible { display: block; }
+
+        #controls-area .search-container, #controls-area .filter-container { margin-bottom: 10px; }
+        #controls-area #sailor-search, #controls-area .filter-select {
+            width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;
+            font-size: clamp(0.9rem, 2.5vw, 1rem); /* Responsive font for inputs */
+            box-sizing: border-box; margin-bottom: 8px;
+        }
+        #controls-area .column-visibility-controls { margin-bottom: 10px; padding: 8px; background-color: #fff; border: 1px solid #ddd; border-radius: 5px; }
+        #controls-area .column-checkbox-container { display: flex; flex-wrap: wrap; gap: 8px; }
+        #controls-area .column-checkbox-label {
+            display: flex; align-items: center; gap: 4px; padding: 4px; background-color: #f0f0f0;
+            border-radius: 3px; cursor: pointer; font-size: clamp(0.8rem, 2vw, 0.9rem); /* Responsive font for checkboxes */
+        }
+        #controls-area .button-container { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+        #controls-area .button-container button {
+            background-color: var(--singapore-red); color: white; border: none; padding: 8px 12px; /* Adjusted padding */
+            border-radius: 5px; cursor: pointer; font-family: 'Roboto', 'Arial Black', sans-serif;
+            text-transform: uppercase; font-weight: 500; letter-spacing: 0.5px;
+            font-size: clamp(0.8rem, 2.5vw, 0.9rem); /* Responsive font for buttons */
+        }
+        #controls-area .button-container button:hover { background-color: var(--table-header-hover); }
+        #controls-area .button-container .secondary-button { background-color: #6c757d; }
+        #controls-area .button-container .secondary-button:hover { background-color: #5a6268; }
+        .footer { margin-top: 20px; text-align: center; font-size: clamp(0.8rem, 2vw, 0.9rem); color: #777; padding-top: 15px; border-top: 1px solid #ddd; }
+        #hidden-logo { display: none; }
+        .table-responsive {
+            overflow-x: auto; /* Essential for responsiveness */
+            -webkit-overflow-scrolling: touch;
+            margin-bottom: 15px; border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            max-height: 70vh; /* Limit table height if needed */
+        }
+        /* Ensure table itself can be scrolled if its content overflows its container */
+        #ranking-table {
+           min-width: 600px; /* Or whatever min-width makes sense for your data */
+        }
+
+        @media (max-width: 768px) {
+            .container { padding: 10px; }
+            #controls-area { padding: 10px; }
+            #controls-area .button-container { flex-direction: column; }
+            #controls-area .button-container button { width: 100%; }
+            #toggle-controls-btn { width: 90%; font-size: 0.9em; }
+            h1 { font-size: clamp(1rem, 5vw, 1.5rem); }
+             .ranking-table th, .ranking-table td {
+                font-size: clamp(8px, 1.8vw, 12px); /* Smaller fonts for smaller screens */
+                padding: clamp(3px, 0.8vw, 6px);
+            }
+            .ranking-table th {
+                font-size: clamp(9px, 2vw, 13px);
+            }
+        }
+         @media (max-width: 480px) {
+             h1 { font-size: clamp(0.9rem, 6vw, 1.3rem); }
+             #toggle-controls-btn { font-size: 0.8em; padding: 6px 12px; }
+             #controls-area #sailor-search, #controls-area .filter-select { font-size: clamp(0.8rem, 3vw, 0.9rem); }
+             .ranking-table th, .ranking-table td {
+                font-size: clamp(7px, 2.2vw, 11px); /* Even smaller for very small screens */
+                padding: clamp(2px, 0.6vw, 5px);
+            }
+            .ranking-table th {
+                font-size: clamp(8px, 2.2vw, 12px);
+            }
+         }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo-container"><img src="data:image/png;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMTAwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjOUQwQTBFIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5TaW5nYXBvcmUgU2FpbGluZzwvdGV4dD48L3N2Zz4=" class="logo" alt="Singapore Sailing Federation Logo"></div>
+        <img id="hidden-logo" src="data:image/png;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMTAwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjOUQwQTBFIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5TaW5nYXBvcmUgU2FpbGluZzwvdGV4dD48L3N2Zz4=" alt="Singapore Sailing Logo for PDF">
+        <h1>Optimist Gold Fleet National Ranking</h1>
+        <button id="toggle-controls-btn">Show Filters</button>
+        <div id="controls-area">
+            <div class="search-container">
+                <label for="sailor-search"><strong>Global Search:</strong></label>
+                <input type="text" id="sailor-search" placeholder="Search across all fields..." onkeyup="searchTable()">
+            </div>
+            <div class="filter-container">
+                <label><strong>Filters:</strong></label>
+                <select id="club-filter" class="filter-select" onchange="applyFilters()"><option value="">All Clubs</option></select>
+                <select id="gender-filter" class="filter-select" onchange="applyFilters()"><option value="">All Genders</option></select>
+            </div>
+            <div class="column-visibility-controls">
+                <label><strong>Column Visibility:</strong></label>
+                <div class="column-checkbox-container" id="column-checkboxes"></div>
+            </div>
+            <div class="button-container">
+                <button onclick="exportToPDF()">Export to PDF</button>
+                <button onclick="exportToExcel()">Export to Excel</button>
+                <button onclick="resetTable()" class="secondary-button">Reset Table</button>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table id="ranking-table" class="ranking-table">
+                <thead><tr></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <div class="footer">© Singapore Sailing Federation</div>
+    </div>
+
+    <script>
+        // --- Toggle Button Setup ---
+        document.addEventListener('DOMContentLoaded', function() {
+            const toggleBtn = document.getElementById('toggle-controls-btn');
+            const controlsDiv = document.getElementById('controls-area');
+            if (toggleBtn && controlsDiv) {
+                toggleBtn.onclick = function() {
+                    controlsDiv.classList.toggle('visible');
+                    toggleBtn.textContent = controlsDiv.classList.contains('visible') ? 'Hide Filters' : 'Show Filters';
+                };
+            } else {
+                console.error('CRITICAL ERROR: Toggle button or controls area DOM element not found during setup.');
+            }
+        });
+        // --- End Toggle Button Setup ---
+
+        // --- Main Table Logic ---
+        const tableData = {"columns": ["National Rank", "Sailor ID", "Sailor Name", "Gender", "Club", "Pulau Ujong Regatta Feb 2026", "SYSC 2026", "SAFYC Mar 2026", "Temasek Regatta 2026", "SAFYC Jul OP 2026", "Best 3 of 5 Regattas"], "rows": [["1", "378", "Li, Lyric Yuxuan", "F", "Changi Sailing Club", "3", "107", "1", "2", "11", "6"], ["2", "53", "Ho, Kevin Jun Yi", "M", "SAF Yacht Club", "2", "7", "84", "4", "2", "8"], ["3", "125", "Zahedi, Anya Alessia", "F", "PAssion Wave (East Coast)", "4", "3", "2", "7", "6", "9"], ["4", "134", "Tham, Ashlyn", "F", "PAssion Wave (East Coast)", "6", "2", "10", "5", "14", "13"], ["5", "235", "Teo, Jairus Xin Jie", "M", "SAF Yacht Club", "21", "39", "6", "2", "5", "13"], ["6", "71", "Goh, Elliot", "M", "SAF Yacht Club", "11", "14", "7", "1", "7", "15"], ["7", "107", "Ong, Elijah", "M", "SAF Yacht Club", "7", "13", "3", "5", "19", "15"], ["8", "59", "Lee, Ethan", "M", "PAssion Wave (East Coast)", "5", "11", "23", "6", "4", "15"], ["9", "38", "Wong, Alyssa Li Lin", "F", "SAF Yacht Club", "9", "9", "15", "9", "1", "19"], ["10", "45", "Cao, Lucas Zhihong", "M", "SAF Yacht Club", "1", "18", "84", "1", "92", "20"], ["11", "54", "Low, Ethan Zhi Ren", "M", "SAF Yacht Club", "15", "20", "32", "3", "3", "21"], ["12", "130", "Ng, Nathaniel Kaiden", "M", "PAssion Wave (Pasir Ris)", "12", "8", "14", "6", "8", "22"], ["13", "140", "Rajakanth, Rahul", "M", "Constant Wind SeaSports @ NSRCC Sea Sports Centre", "10", "17", "5", "13", "17", "28"], ["14", "127", "Huang, Damien", "M", "PAssion Wave (East Coast)", "20", "23", "8", "8", "16", "32"], ["15", "136", "Wong, Nicole Jing Chen", "F", "SAF Yacht Club", "31", "43", "4", "10", "20", "34"], ["16", "90", "Lam, Jedd Zhi Hao", "M", "Constant Wind SeaSports @ NSRCC Sea Sports Centre", "14", "16", "11", "15", "12", "37"], ["17", "143", "Huang, Darian", "M", "PAssion Wave (East Coast)", "27", "26", "16", "14", "9", "39"], ["18", "75", "Soh, Kyle Jeremy Zhi Jun", "M", "SAF Yacht Club", "48", "36", "18", "12", "13", "43"], ["19", "108", "Ong, Edrei En Xu", "M", "SAF Yacht Club", "26", "32", "19", "4", "30", "49"], ["20", "46", "Binte Mohd Airudin, Siti Ra'idah", "F", "PAssion Wave (East Coast)", "22", "27", "17", "11", "25", "50"], ["21", "92", "Low, Jaye Xi En", "F", "PAssion Wave (East Coast)", "24", "15", "31", "31", "15", "54"], ["22", "78", "Ng, Timothy Kai Zhe", "M", "Constant Wind SeaSports @ NSRCC Sea Sports Centre", "34", "59", "20", "19", "21", "60"], ["23", "289", "Tan, Herng Yee", "M", "SAF Yacht Club", "33", "49", "13", "22", "28", "63"], ["24", "379", "Tan, Kirsten En Ting", "F", "SAF Yacht Club", "16", "45", "36", "18", "33", "67"], ["25", "287", "Cheong, Olivia Ting Jia", "F", "SAF Yacht Club", "17", "28", "42", "23", "40", "68"], ["26", "147", "Tan, Joseph Kia Guan", "M", "SAF Yacht Club", "37", "44", "21", "24", "24", "69"], ["27", "322", "Goh, Dylan Yue Teng", "M", "SAF Yacht Club", "18", "31", "29", "26", "26", "70"], ["28", "258", "Lin, Shin Chen Rui", "M", "SAF Yacht Club", "25", "37", "38", "17", "29", "71"], ["29", "236", "Teo, Rui Ling", "F", "SAF Yacht Club", "36", "30", "24", "20", "27", "71"], ["30", "141", "Rajakanth, Padmaeja", "F", "Constant Wind SeaSports @ NSRCC Sea Sports Centre", "44", "38", "34", "16", "22", "72"], ["31", "471", "Chen, Wangsun", "M", "Constant Wind SeaSports @ NSRCC Sea Sports Centre", "89", "29", "12", "73", "32", "73"], ["32", "74", "Soh, Kaelyn Dayna Zhi Yi", "F", "SAF Yacht Club", "19", "35", "27", "27", "35", "73"], ["33", "321", "Loh, Luke Yi Jie", "M", "SAF Yacht Club", "30", "33", "22", "21", "46", "73"], ["34", "135", "Ong, Jeremiah Rui Feng", "M", "SAF Yacht Club", "29", "25", "37", "35", "23", "77"], ["35", "60", "Lim, Rachel Qian Hui", "F", "SAF Yacht Club", "40", "24", "28", "38", "34", "86"], ["36", "182", "Lee, Katelynn Kai En", "F", "SAF Yacht Club", "41", "62", "35", "25", "31", "91"], ["37", "242", "Tan, Joshua Zhi Kai", "M", "SAF Yacht Club", "38", "65", "51", "39", "18", "95"], ["38", "241", "Lim, Lavene Rui Xuan", "F", "SAF Yacht Club", "32", "40", "33", "30", "39", "95"], ["39", "513", "Anuar, Aidan Armand", "M", "SAF Yacht Club", "52", "56", "26", "33", "49", "108"], ["40", "99", "Qi, Tan", "F", "Constant Wind SeaSports @ NSRCC Sea Sports Centre", "74", "80", "43", "28", "41", "112"], ["41", "386", "Khoo, Joel Zhuo Le", "M", "SAF Yacht Club", "35", "58", "56", "42", "36", "113"], ["42", "355", "Toh, Dan Guan You", "M", "SAF Yacht Club", "45", "51", "44", "32", "43", "119"], ["43", "476", "Chow, Yvette Yi Min", "F", "SAF Yacht Club", "42", "55", "46", "40", "42", "124"], ["44", "68", "Kong, Charles Shing Chak", "M", "Changi Sailing Club", "23", "107", "30", "73", "92", "126"], ["45", "83", "Chiang, Aaron Zhiyi", "M", "SAF Yacht Club", "53", "67", "58", "37", "38", "128"], ["46", "494", "Srihari, Meera", "F", "SAF Yacht Club", "49", "50", "48", "36", "51", "133"], ["47", "305", "Wong, Jude Nathan", "M", "SAF Yacht Club", "47", "72", "40", "46", "55", "133"], ["48", "272", "Wong, Mikaela Hui Ting", "F", "SAF Yacht Club", "50", "69", "50", "34", "92", "134"], ["49", "72", "Chen, Abby Yan Ying", "F", "PAssion Wave (East Coast)", "82", "66", "41", "52", "44", "137"], ["50", "278", "Low, Quintan Rupert", "M", "SAF Yacht Club", "59", "60", "52", "41", "45", "138"], ["51", "106", "Lim, Yuk Pin", "M", "SAF Yacht Club", "43", "61", "84", "59", "37", "139"], ["52", "86", "Ong, Joel Han Sheng", "M", "Constant Wind SeaSports @ NSRCC Sea Sports Centre", "28", "53", "59", "73", "92", "140"], ["53", "240", "Lim, Lucas Rui Kai", "M", "SAF Yacht Club", "39", "63", "47", "73", "92", "149"], ["54", "315", "Kai, Yen Yu", "F", "Changi Sailing Club", "55", "54", "45", "54", "68", "153"], ["55", "408", "Kok, Joash Jit Yin", "M", "PAssion Wave (East Coast)", "46", "107", "39", "73", "92", "158"], ["56", "518", "Tan, Hayley Kai En", "F", "Changi Sailing Club", "72", "74", "71", "29", "62", "162"], ["57", "93", "Poh, Euan Hao Xuan", "M", "Constant Wind SeaSports @ NSRCC Sea Sports Centre", "51", "76", "62", "50", "64", "163"], ["58", "499", "Mao, Weihan", "F", "SAF Yacht Club", "54", "107", "53", "73", "56", "163"], ["59", "155", "Yong, Charlene Heng Ning", "F", "Changi Sailing Club", "73", "105", "65", "49", "50", "164"], ["60", "56", "Low, Zachary Zhi En", "M", "SAF Yacht Club", "62", "75", "54", "51", "92", "167"], ["61", "183", "Lee, Matthias Kai Lun", "M", "SAF Yacht Club", "79", "88", "64", "45", "59", "168"], ["62", "249", "Tan, Kyan Chun Hong", "M", "SAF Yacht Club", "63", "82", "57", "60", "53", "170"], ["63", "101", "Lee, Gentaro Noah", "M", "PAssion Wave (East Coast)", "56", "68", "68", "47", "92", "171"], ["64", "234", "Soh, Christopher", "M", "SAF Yacht Club", "61", "84", "79", "58", "52", "171"], ["65", "204", "Seow, Lucas Jun Sheng", "M", "Constant Wind SeaSports @ NSRCC Sea Sports Centre", "60", "79", "75", "56", "61", "177"], ["66", "262", "Tan, Ethan Jing Zhou", "M", "SAF Yacht Club", "58", "94", "67", "55", "67", "180"], ["67", "290", "Teh, Ashleigh Li Ying", "F", "SAF Yacht Club", "86", "98", "82", "44", "58", "184"], ["68", "185", "Puah, Xavier Yang Zheng", "M", "Constant Wind SeaSports @ NSRCC Sea Sports Centre", "85", "92", "49", "70", "65", "184"], ["69", "80", "Ouyang, Hanyue", "M", "ONE\u00b015 Marina Club", "89", "81", "84", "53", "54", "188"], ["70", "316", "Kai, Chen-Yi", "M", "SAF Yacht Club", "77", "89", "61", "61", "66", "188"], ["71", "229", "Yeo, Estelle Rui En", "F", "Changi Sailing Club", "64", "99", "72", "57", "92", "193"], ["72", "415", "Koo, Tyler", "M", "Republic of Singapore Yacht Club", "69", "87", "78", "63", "63", "195"], ["73", "489", "Tan, Kenji Huan Zhe", "M", "SAF Yacht Club", "81", "95", "66", "73", "60", "199"], ["74", "228", "Zhang, Isabelle Xinyi", "F", "Constant Wind SeaSports @ NSRCC Sea Sports Centre", "71", "97", "63", "66", "92", "200"], ["75", "210", "Ng, Nigel Jiang Long", "M", "SAF Yacht Club", "65", "91", "77", "64", "71", "200"], ["76", "495", "Chiam, Matthew Qin Hao", "M", "SAF Yacht Club", "89", "83", "84", "48", "72", "203"], ["77", "607", "Choo, Ryan Yong Jie", "M", "Changi Sailing Club", "78", "107", "55", "73", "75", "203"], ["78", "67", "Yeh, Sage", "F", "Changi Sailing Club", "70", "85", "60", "73", "77", "203"], ["79", "87", "Kwok, Gloria Yen Rui", "F", "Constant Wind SeaSports @ NSRCC Sea Sports Centre", "67", "101", "70", "69", "73", "206"], ["80", "276", "Chan, Breyven Zhi Long", "M", "SAF Yacht Club", "75", "107", "69", "65", "82", "209"], ["81", "88", "Wang, Boren", "M", "PAssion Wave (East Coast)", "76", "78", "76", "68", "92", "220"], ["82", "457", "Goh, Hagen", "M", "SAF Yacht Club", "66", "106", "84", "71", "84", "221"], ["83", "154", "Fong, Luke Tin", "M", "Constant Wind SeaSports @ NSRCC Sea Sports Centre", "68", "93", "81", "73", "92", "222"], ["84", "404", "Lee, Iver Zhe Xi", "M", "SAF Yacht Club", "89", "107", "84", "73", "69", "226"], ["85", "498", "Whittington, George Kai", "M", "Changi Sailing Club", "80", "107", "73", "73", "85", "226"], ["86", "121", "Leow, Auwin Zhao Hong", "M", "SAF Yacht Club", "88", "100", "83", "67", "79", "229"], ["87", "280", "Seah, Denzel", "M", "SAF Yacht Club", "83", "107", "74", "73", "88", "230"], ["88", "238", "Teo, Kai Jie", "M", "SAF Yacht Club", "89", "107", "84", "73", "74", "231"], ["89", "512", "Yeo, Aidan See Hett", "M", "SAF Yacht Club", "87", "102", "80", "72", "81", "233"], ["90", "335", "Yusfianshah, Yasin Yusuf", "M", "SAF Yacht Club", "89", "107", "84", "73", "76", "233"], ["91", "139", "Behl, Arun John", "M", "Changi Sailing Club", "89", "107", "84", "73", "78", "235"], ["92", "505", "Loh, Yan Cheng", "M", "SAF Yacht Club", "89", "107", "84", "73", "80", "237"], ["93", "109", "Ong, Evan En Kai", "M", "SAF Yacht Club", "89", "107", "84", "73", "83", "240"], ["94", "485", "Pitsilis, Chloe Ariane", "F", "Changi Sailing Club", "89", "107", "84", "73", "86", "243"], ["95", "403", "Lee, Ivor Zhuo Xi", "M", "SAF Yacht Club", "89", "107", "84", "73", "87", "244"], ["96", "601", "Ng, Clara Siew Ning", "F", "SAF Yacht Club", "89", "107", "84", "73", "89", "246"], ["97", "217", "Hoo, Zachary", "M", "Constant Wind SeaSports @ NSRCC Sea Sports Centre", "89", "107", "84", "73", "90", "246"], ["98", "237", "Teo, Shen Jie", "M", "SAF Yacht Club", "89", "107", "84", "73", "91", "246"], ["99", "196", "Yuan, Su", "F", "SAF Yacht Club", "89", "107", "84", "73", "92", "246"], ["99", "89", "Cama, Cyra", "F", "ONE\u00b015 Marina Club", "89", "107", "84", "73", "92", "246"]]};
+        const originalTableData = JSON.parse(JSON.stringify(tableData)); // Deep copy
+        let sortColumn = 0; // Default sort column index
+        let sortDirection = 1; // 1 for ascending, -1 for descending
+        const columnVisibility = {};
+
+        // Initialize columnVisibility: all columns initially visible
+        if (tableData && tableData.columns) {
+            tableData.columns.forEach(column => { columnVisibility[column] = true; });
+        } else {
+            console.error("CRITICAL ERROR: tableData.columns is undefined. Table functionality will be impaired.");
+        }
+
+        function initializeTable() {
+            if (!tableData || !tableData.columns) {
+                console.error("ERROR in initializeTable: tableData or tableData.columns is not defined. Aborting table initialization.");
+                return;
+            }
+            createColumnCheckboxes();
+
+            // Set default sort to National Rank column if it exists
+            const nationalRankIndex = tableData.columns.indexOf('National Rank');
+            if (nationalRankIndex !== -1) {
+                sortColumn = nationalRankIndex;
+                sortDirection = 1; // Ascending
+            }
+
+            updateTableHeader();
+            populateTableRows();
+            populateFilterDropdowns();
+
+            // Mark the default sort column with visual indicator
+            if (nationalRankIndex !== -1) {
+                const rankHeader = document.querySelector(`th[data-column="${nationalRankIndex}"]`);
+                if (rankHeader) {
+                    rankHeader.classList.add('sorted-asc');
+                }
+            }
+        }
+
+        function createColumnCheckboxes() {
+            const container = document.getElementById('column-checkboxes');
+            if (!container) { console.error("ERROR: 'column-checkboxes' container not found."); return; }
+            container.innerHTML = ''; // Clear existing checkboxes
+            if (!tableData || !tableData.columns) { console.error("ERROR in createColumnCheckboxes: tableData.columns is undefined."); return; }
+
+            tableData.columns.forEach((column, index) => {
+                const label = document.createElement('label');
+                label.className = 'column-checkbox-label';
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.checked = columnVisibility[column]; // Reflect current visibility state
+                checkbox.onchange = () => {
+                    columnVisibility[column] = checkbox.checked;
+                    updateTableHeader(); // Re-render header
+                    populateTableRows(); // Re-render rows
+                };
+                label.appendChild(checkbox);
+                label.appendChild(document.createTextNode(column));
+                container.appendChild(label);
+            });
+        }
+
+        function updateTableHeader() {
+            const headerRow = document.querySelector('#ranking-table thead tr');
+            if (!headerRow) { console.error("ERROR: '#ranking-table thead tr' not found."); return; }
+            headerRow.innerHTML = ''; // Clear existing header
+            if (!tableData || !tableData.columns) { console.error("ERROR in updateTableHeader: tableData.columns is undefined."); return; }
+
+            tableData.columns.forEach((column, index) => {
+                if (columnVisibility[column]) { // Only add header if column is visible
+                    const th = document.createElement('th');
+                    th.textContent = column;
+                    th.onclick = () => sortTable(index);
+                    th.setAttribute('data-column', index);
+                    th.classList.remove('sorted-asc', 'sorted-desc'); // Clear old sort indicators
+                    if (index === sortColumn) { // Add indicator if this is the current sort column
+                        th.classList.add(sortDirection === 1 ? 'sorted-asc' : 'sorted-desc');
+                    }
+                    headerRow.appendChild(th);
+                }
+            });
+        }
+
+        function populateTableRows() {
+            const tbody = document.querySelector('#ranking-table tbody');
+            if (!tbody) { console.error("ERROR: '#ranking-table tbody' not found."); return; }
+            tbody.innerHTML = ''; // Clear existing rows
+
+            const searchInput = document.getElementById('sailor-search');
+            const clubSelect = document.getElementById('club-filter');
+            const genderSelect = document.getElementById('gender-filter');
+
+            if (!searchInput || !clubSelect || !genderSelect) {
+                 console.error("ERROR: One or more filter/search input DOM elements not found."); return;
+            }
+
+            const searchTerm = searchInput.value.toLowerCase();
+            const clubFilter = clubSelect.value;
+            const genderFilter = genderSelect.value;
+
+            if (!tableData || !tableData.columns || !tableData.rows) {
+                console.error("ERROR in populateTableRows: tableData, tableData.columns, or tableData.rows is undefined."); return;
+            }
+            const clubIndex = tableData.columns.indexOf('Club');
+            const genderIndex = tableData.columns.indexOf('Gender');
+
+            let currentRows = tableData.rows; // Assumes tableData.rows is already sorted by sortTable()
+            currentRows.forEach((row) => {
+                // Apply filters
+                let passesFilters = true;
+                if (clubFilter && clubIndex >= 0 && row[clubIndex] !== clubFilter) passesFilters = false;
+                if (genderFilter && genderIndex >= 0 && row[genderIndex] !== genderFilter) passesFilters = false;
+                if (!passesFilters) return; // Skip row if it doesn't pass filters
+
+                // Apply search term
+                if (searchTerm) {
+                    let foundInSearch = false;
+                    for (let i = 0; i < row.length; i++) {
+                        // Search only in columns that are currently set to be visible
+                        if (columnVisibility[tableData.columns[i]] && String(row[i]).toLowerCase().includes(searchTerm)) {
+                            foundInSearch = true; break;
+                        }
+                    }
+                    if (!foundInSearch) return; // Skip row if search term not found
+                }
+
+                const tr = document.createElement('tr');
+                row.forEach((cell, cellIndex) => {
+                    if (columnVisibility[tableData.columns[cellIndex]]) { // Only add cell if column is visible
+                        const td = document.createElement('td');
+                        td.textContent = cell;
+                        tr.appendChild(td);
+                    }
+                });
+                tbody.appendChild(tr);
+            });
+        }
+
+        function populateFilterDropdowns() {
+            if (!tableData || !tableData.columns || !originalTableData || !originalTableData.rows) {
+                console.error("ERROR in populateFilterDropdowns: Required data objects (tableData, originalTableData) are not fully defined."); return;
+            }
+
+            const clubIndex = tableData.columns.indexOf('Club');
+            const clubFilterEl = document.getElementById('club-filter');
+            if (clubIndex >= 0 && clubFilterEl) {
+                const clubs = [...new Set(originalTableData.rows.map(row => row[clubIndex]))].filter(c => c).sort(); // Get unique, non-empty, sorted clubs
+                clubFilterEl.innerHTML = '<option value="">All Clubs</option>'; // Reset
+                clubs.forEach(club => { const option = document.createElement('option'); option.value = club; option.textContent = club; clubFilterEl.appendChild(option); });
+            }
+
+            const genderIndex = tableData.columns.indexOf('Gender');
+            const genderFilterEl = document.getElementById('gender-filter');
+            if (genderIndex >= 0 && genderFilterEl) {
+                const genders = [...new Set(originalTableData.rows.map(row => row[genderIndex]))].filter(g => g).sort();
+                genderFilterEl.innerHTML = '<option value="">All Genders</option>';
+                genders.forEach(gender => { const option = document.createElement('option'); option.value = gender; option.textContent = gender; genderFilterEl.appendChild(option); });
+            }
+        }
+
+        function applyFilters() { populateTableRows(); }
+        function searchTable() { populateTableRows(); }
+
+        function sortTable(columnIndex) {
+            if (!tableData || !tableData.rows) { console.error("ERROR in sortTable: tableData.rows is undefined."); return; }
+
+            // Remove sort indicators from all headers
+            document.querySelectorAll('#ranking-table th').forEach(th => {
+                th.classList.remove('sorted-asc', 'sorted-desc');
+            });
+
+            if (sortColumn === columnIndex) {
+                sortDirection *= -1; // Toggle direction
+            } else {
+                sortColumn = columnIndex;
+                sortDirection = 1; // Default to ascending for new column
+            }
+
+            tableData.rows.sort((a, b) => {
+                let valA = a[columnIndex];
+                let valB = b[columnIndex];
+
+                // Handle empty strings consistently: push them to the bottom regardless of sort order
+                const isAEmpty = valA === null || valA === undefined || valA === "";
+                const isBEmpty = valB === null || valB === undefined || valB === "";
+
+                if (isAEmpty && isBEmpty) return 0;
+                if (isAEmpty) return 1; // valA is empty, valB is not, so A comes after B
+                if (isBEmpty) return -1; // valB is empty, valA is not, so B comes after A
+
+                // Attempt numeric sort if both are numbers
+                const numA = parseFloat(valA);
+                const numB = parseFloat(valB);
+                if (!isNaN(numA) && !isNaN(numB)) {
+                    return sortDirection * (numA - numB);
+                }
+
+                // Fallback to string locale-aware comparison (with numeric option)
+                return sortDirection * String(valA).localeCompare(String(valB), undefined, { numeric: true, sensitivity: 'base' });
+            });
+
+            updateTableHeader();
+            populateTableRows();
+        }
+
+        function resetTable() {
+            const searchInput = document.getElementById('sailor-search');
+            const clubSelect = document.getElementById('club-filter');
+            const genderSelect = document.getElementById('gender-filter');
+            // Reset input fields
+            if (searchInput) searchInput.value = '';
+            if (clubSelect) clubSelect.value = '';
+            if (genderSelect) genderSelect.value = '';
+
+            if (!tableData || !tableData.columns || !originalTableData || !originalTableData.rows) {
+                console.error("ERROR in resetTable: tableData or originalTableData parts are not fully defined."); return;
+            }
+            // Reset column visibility to all true
+            Object.keys(columnVisibility).forEach(column => { columnVisibility[column] = true; });
+            // Restore original row data (deep copy)
+            tableData.rows = JSON.parse(JSON.stringify(originalTableData.rows));
+
+            // Reset sort to default (e.g., National Rank, ascending)
+            const nationalRankIndex = tableData.columns.indexOf('National Rank');
+            if (nationalRankIndex !== -1) {
+                sortColumn = nationalRankIndex;
+                sortDirection = 1;
+            } else {
+                sortColumn = 0; // Fallback to first column
+                sortDirection = 1;
+            }
+
+            // Re-render everything
+            createColumnCheckboxes();
+            updateTableHeader();
+            populateTableRows();
+        }
+
+        function getFilteredAndSortedRows() {
+            if (!tableData || !tableData.columns || !tableData.rows) {
+                console.error("ERROR in getFilteredAndSortedRows: tableData parts are not fully defined."); return [];
+            }
+            const searchInput = document.getElementById('sailor-search');
+            const clubSelect = document.getElementById('club-filter');
+            const genderSelect = document.getElementById('gender-filter');
+            if (!searchInput || !clubSelect || !genderSelect) {
+                 console.error("ERROR: One or more filter/search input DOM elements not found for export data generation."); return [];
+            }
+            const searchTerm = searchInput.value.toLowerCase();
+            const clubFilter = clubSelect.value;
+            const genderFilter = genderSelect.value;
+            const clubIndex = tableData.columns.indexOf('Club');
+            const genderIndex = tableData.columns.indexOf('Gender');
+
+            // Use the current, sorted tableData.rows as the base for filtering
+            let filteredRows = tableData.rows.filter(row => {
+                if (clubFilter && clubIndex >= 0 && row[clubIndex] !== clubFilter) return false;
+                if (genderFilter && genderIndex >= 0 && row[genderIndex] !== genderFilter) return false;
+                if (searchTerm) {
+                    let found = false;
+                    for (let i = 0; i < row.length; i++) {
+                        if (columnVisibility[tableData.columns[i]] && String(row[i]).toLowerCase().includes(searchTerm)) {
+                            found = true; break;
+                        }
+                    }
+                    if (!found) return false;
+                }
+                return true;
+            });
+            return filteredRows;
+        }
+
+        function exportToPDF() {
+            const { jsPDF } = window.jspdf; // Ensure jsPDF is correctly accessed from window object
+            const doc = new jsPDF('l', 'mm', 'a4');
+            doc.setProperties({ title: 'Singapore Sailing National Ranking', subject: 'National Ranking Table', author: 'Singapore Sailing Federation', creator: 'National Ranking Tool' });
+            const logoImg = document.getElementById('hidden-logo');
+            if (logoImg && logoImg.src && logoImg.src.indexOf('base64') !== -1) {
+                try {
+                    doc.addImage(logoImg.src, 'PNG', 240, 10, 40, 15);
+                } catch (e) {
+                    console.error("Error adding logo to PDF:", e);
+                }
+            }
+            doc.setFontSize(16); doc.setTextColor(157, 10, 14); doc.text('OPTIMIST GOLD FLEET NATIONAL RANKING', 15, 20);
+            doc.setFontSize(10); doc.setTextColor(0, 0, 0); const today = new Date().toLocaleDateString(); doc.text(`Generated on: ${today}`, 15, 25);
+
+            if (!tableData || !tableData.columns) { console.error("ERROR in exportToPDF: tableData.columns undefined."); return; }
+            const visibleColumnsHeaders = tableData.columns.filter(column => columnVisibility[column]);
+            const rowsForExport = getFilteredAndSortedRows();
+            const bodyData = rowsForExport.map(row =>
+                row.filter((cell, index) => columnVisibility[tableData.columns[index]])
+            );
+
+            doc.autoTable({
+                head: [visibleColumnsHeaders],
+                body: bodyData,
+                startY: 30,
+                theme: 'grid',
+                headStyles: { fillColor: [157, 10, 14], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center', cellPadding: 2, minCellHeight: 14, valign: 'middle' },
+                alternateRowStyles: { fillColor: [240, 240, 240] },
+                margin: { top: 30 },
+                styles: { overflow: 'linebreak', cellPadding: 3, fontSize: 8, halign: 'center' }
+            });
+            const pageCount = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.text(`Singapore Sailing Federation | Page ${i} of ${pageCount}`, doc.internal.pageSize.width - 90, doc.internal.pageSize.height - 10);
+            }
+            doc.save('ssf_goldfleet_ranking.pdf');
+        }
+
+        function exportToExcel() {
+            if (!tableData || !tableData.columns) { console.error("ERROR in exportToExcel: tableData.columns undefined."); return; }
+            const visibleColumnsHeaders = tableData.columns.filter(column => columnVisibility[column]);
+            const rowsForExport = getFilteredAndSortedRows();
+            const bodyData = rowsForExport.map(row =>
+                row.filter((cell, index) => columnVisibility[tableData.columns[index]])
+            );
+            const ws = XLSX.utils.aoa_to_sheet([visibleColumnsHeaders, ...bodyData]);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'National Ranking');
+            XLSX.writeFile(wb, 'ssf_goldfleet_ranking.xlsx');
+        }
+
+        // Initialize the main table logic after the DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeTable();
+        });
+        // --- End Main Table Logic ---
+    </script>
+</body>
+</html>
