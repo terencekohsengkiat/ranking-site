@@ -57,6 +57,14 @@
         #controls-area .button-container button:hover { background-color: var(--table-header-hover); }
         #controls-area .button-container .secondary-button { background-color: #6c757d; }
         #controls-area .button-container .secondary-button:hover { background-color: #5a6268; }
+        .published-date {
+            margin: 0 0 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #e8e2d9;
+            font-size: clamp(0.78rem, 2vw, 0.88rem);
+            color: #6b6b6b;
+        }
+        .published-date strong { color: var(--singapore-red); font-weight: 600; }
         .footer { margin-top: 30px; text-align: center; font-size: 14px; color: #777; padding-top: 20px; border-top: 1px solid #ddd; }
         #hidden-logo { display: none; }
         .table-responsive { overflow-x: auto; overflow-y: auto; -webkit-overflow-scrolling: touch; position: relative; margin-bottom: 20px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); max-height: 900px; }
@@ -95,6 +103,7 @@
                 <button onclick="resetTable()" class="secondary-button">Reset Table</button>
             </div>
         </div>
+        <p class="published-date">Ranking published @ <strong>1003h 8 September 2026</strong></p>
         <div class="table-responsive">
             <table id="ranking-table" class="ranking-table">
                 <thead><tr></tr></thead>
